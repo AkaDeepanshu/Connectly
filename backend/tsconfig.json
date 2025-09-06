@@ -1,12 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "nodenext",
     "rootDir": "./src",
     "outDir": "./dist",
 
-    // Node types
-    "types": ["node"],
 
     // Outputs
     "sourceMap": true,
@@ -15,7 +13,6 @@
 
     // Strict options
     "strict": true,
-    "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 
     // Module resolution

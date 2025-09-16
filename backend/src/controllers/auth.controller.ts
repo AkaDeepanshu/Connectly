@@ -1,9 +1,11 @@
 import type { Request, Response } from "express";
 import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
-import { generateToken } from "../utils/jwt.js";
+import { generateAccessToken } from "../utils/jwt.js";
 import { createAndSendOtp } from "../services/otpVerification.service.js";
 import { verifyOtpHash } from "../utils/otp.js";
+import redis from "../config/redis.js";
+import jwt from "jsonwebtoken";
 
 // signup controller
 export const signup = async (req: Request, res: Response) => {
@@ -121,7 +123,19 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Generate token and return user
-    const token = generateToken(user.id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateAccessToken(user.id);
+
+    await redis.set(`refresh:${user.id}`, refreshToken, {
+      EX: 30 * 24 * 60 * 60,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
 
     return res.status(200).json({
       message: "Login successful",
@@ -131,7 +145,7 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         username: user.username,
       },
-      token: token,
+      accessToken: accessToken,
     });
   } catch (err: any) {
     console.error("Error during login:", err);
@@ -217,7 +231,12 @@ export const verifyOtp = async (req: Request, res: Response) => {
     });
 
     // generate token
-    const token = generateToken(user.id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateAccessToken(user.id);
+
+    await redis.set(`refresh:${user.id}`, refreshToken, {
+      EX: 30 * 24 * 60 * 60,
+    });
 
     const safeUser = {
       id: user.id,
@@ -226,9 +245,16 @@ export const verifyOtp = async (req: Request, res: Response) => {
       name: user.name,
     };
 
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
     return res.status(200).json({
       message: "OTP verified successfully",
-      token: token,
+      accessToken: accessToken,
       user: safeUser,
     });
   } catch (err: any) {
@@ -237,5 +263,38 @@ export const verifyOtp = async (req: Request, res: Response) => {
       message: "Internal server error",
       error: err.message,
     });
+  }
+};
+
+export const refreshAccessToken = async (req: Request, res: Response) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        message: "Refresh token not found",
+      });
+    }
+
+    const decoded: any = jwt.verify(
+      refreshToken,
+      process.env.JWT_SECRET as string
+    );
+    const storedToken = await redis.get(`refresh:${decoded.userId}`);
+
+    if (!storedToken || storedToken !== refreshToken) {
+      return res.status(403).json({
+        message: "Invalid refresh token",
+      });
+    }
+
+    const accessToken = generateAccessToken(BigInt(decoded.userId));
+    return res.status(200).json({
+      accessToken,
+    });
+  } catch (err: any) {
+    return res
+      .status(403)
+      .json({ message: "Invalid or expired refresh token" });
   }
 };

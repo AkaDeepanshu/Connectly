@@ -1,5 +1,6 @@
 import express,  { type Request, type Response } from "express";
 import authRoutes from './routes/auth.route.js'
+import cookieParser from "cookie-parser";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 5000;
 
 
 // Middleware
+app.use(cookieParser());
 app.use(express.json());
 
 // Routes

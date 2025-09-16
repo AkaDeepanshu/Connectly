@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../utils/jwt.js";
+import { createAndSendOtp } from "../services/otpVerification.service.js";
+import { verifyOtpHash } from "../utils/otp.js";
 
 // signup controller
 export const signup = async (req: Request, res: Response) => {
@@ -53,11 +55,15 @@ export const signup = async (req: Request, res: Response) => {
 
     console.log("User created:", user);
 
+    await createAndSendOtp(user.email);
+
     return res.status(201).json({
-      message: "User created successfully",
-      user
+      message:
+        "User created successfully. OTP sent to your email please verify your account.",
+      user,
+      redirect: "/verify-otp",
     });
-  } catch (err : any) {
+  } catch (err: any) {
     console.error("Error during signup:", err);
     return res.status(500).json({
       message: "Internal server error",
@@ -67,50 +73,50 @@ export const signup = async (req: Request, res: Response) => {
 };
 
 // login controller
-export const login = async (req:Request, res:Response)=>{
-  const { identifier , password }= req.body;
+export const login = async (req: Request, res: Response) => {
+  const { identifier, password } = req.body;
 
   // Validations
-  if(!identifier || !password){
+  if (!identifier || !password) {
     return res.status(400).json({
       message: "Identifier and password are required",
     });
   }
 
-  try{
+  try {
     // find user by email or username
     const user = await prisma.user.findFirst({
-      where:{
-        OR:[
-          {email:identifier.toLowerCase()},
-          {username:identifier.toLowerCase()}
-        ]
-      }
+      where: {
+        OR: [
+          { email: identifier.toLowerCase() },
+          { username: identifier.toLowerCase() },
+        ],
+      },
     });
 
-    if(!user){
+    if (!user) {
       return res.status(400).json({
-        message:"User not found"
+        message: "User not found",
       });
     }
 
     // compare password
-    const isPasswordValid = await bcrypt.compare(password , user.password);
-    if(!isPasswordValid){
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
       return res.status(400).json({
-        message:"Invalid password"
+        message: "Invalid password",
       });
     }
 
     // check if user is verified
-    if(user.status=='pending'){
-      // TODO: OTP verification to user email
-
+    if (user.status == "pending") {
+      await createAndSendOtp(user.email);
 
       return res.status(403).json({
-        message:"User is not verified. Please verify your account.",
-        email:user.email,
-        redirect: "/verify-otp"
+        message:
+          "User is not verified. OTP sent to your email please verify your account.",
+        email: user.email,
+        redirect: "/verify-otp",
       });
     }
 
@@ -127,12 +133,109 @@ export const login = async (req:Request, res:Response)=>{
       },
       token: token,
     });
-  }
-  catch(err:any){
+  } catch (err: any) {
     console.error("Error during login:", err);
     return res.status(500).json({
       message: "Internal server error",
       error: err.message,
     });
   }
-}
+};
+
+// check username availability controller
+export const checkUsernameAvailability = async (
+  req: Request,
+  res: Response
+) => {
+  const { username } = req.query;
+
+  // Validations
+  if (!username) {
+    return res.status(400).json({
+      message: "Username is required",
+    });
+  }
+
+  try {
+    // Check if username exists
+    const user = await prisma.user.findUnique({
+      where: { username: username.toString() },
+    });
+
+    if (user) {
+      return res.status(200).json({
+        message: "Username is taken",
+        available: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: "Username is available",
+      available: true,
+    });
+  } catch (err: any) {
+    console.error("Error checking username availability:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+// verify otp controller
+export const verifyOtp = async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  // Validations
+  if (!email || !otp) {
+    return res.status(400).json({
+      message: "Email and OTP is required",
+    });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({
+        message: "User Not Found",
+      });
+    }
+
+    // TODO: get otp from redis
+
+    // const isValid = await verifyOtpHash(otp, hashOtp);
+    // if(!isValid){
+    //   return res.status(400).json({
+    //     message:"Invalid OTP"
+    //   });
+    // }
+
+    // update status of user to verified
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { status: "verified" },
+    });
+
+    // generate token
+    const token = generateToken(user.id);
+
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: user.name,
+    };
+
+    return res.status(200).json({
+      message: "OTP verified successfully",
+      token: token,
+      user: safeUser,
+    });
+  } catch (err: any) {
+    console.error("Error verifying user otp:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};

@@ -1,11 +1,11 @@
 import type { Request, Response } from "express";
 import prisma from "../config/db.js";
 import bcrypt from "bcryptjs";
-import { generateAccessToken } from "../utils/jwt.js";
-import { createAndSendOtp } from "../services/otpVerification.service.js";
-import { verifyOtpHash } from "../utils/otp.js";
+import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
+import { createAndSendOtp } from "../services/otp.verification.service.js";
 import redis from "../config/redis.js";
 import jwt from "jsonwebtoken";
+import { verifyOtpForUser } from "../services/otp.service.js";
 
 // signup controller
 export const signup = async (req: Request, res: Response) => {
@@ -53,11 +53,14 @@ export const signup = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
       },
+      select:{
+        id:true, email:true, username:true, name:true, status:true
+      }
     });
 
     console.log("User created:", user);
 
-    await createAndSendOtp(user.email);
+    await createAndSendOtp(Number(user.id), user.email);
 
     return res.status(201).json({
       message:
@@ -112,7 +115,7 @@ export const login = async (req: Request, res: Response) => {
 
     // check if user is verified
     if (user.status == "pending") {
-      await createAndSendOtp(user.email);
+      await createAndSendOtp(Number(user.id), user.email);
 
       return res.status(403).json({
         message:
@@ -124,11 +127,14 @@ export const login = async (req: Request, res: Response) => {
 
     // Generate token and return user
     const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
 
-    await redis.set(`refresh:${user.id}`, refreshToken, {
-      EX: 30 * 24 * 60 * 60,
-    });
+    await redis.set(
+      `refresh:${user.id}`,
+      refreshToken,
+      "EX",
+      30 * 24 * 60 * 60
+    );
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -214,32 +220,40 @@ export const verifyOtp = async (req: Request, res: Response) => {
         message: "User Not Found",
       });
     }
-
-    // TODO: get otp from redis
-
-    // const isValid = await verifyOtpHash(otp, hashOtp);
-    // if(!isValid){
-    //   return res.status(400).json({
-    //     message:"Invalid OTP"
-    //   });
-    // }
+    const userId = Number(user.id);
+    const result = await verifyOtpForUser(userId, otp);
+    if(!result.success){
+      if(result.reason === 'blocked') return res.status(429).json({
+        error:"Too many invalid attempts. OTP verification is temporarily blocked. Please try again later.",
+      })
+      if(result.reason === 'not_found') return res.status(404).json({
+        message: "OTP not found or expired. Please request a new OTP.",
+      })
+      return res.status(400).json({
+        error:"invalid OTP",
+        attempts: result.attempts
+      })
+    }
 
     // update status of user to verified
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: userId },
       data: { status: "verified" },
     });
 
     // generate token
     const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
 
-    await redis.set(`refresh:${user.id}`, refreshToken, {
-      EX: 30 * 24 * 60 * 60,
-    });
+    await redis.set(
+      `refresh:${userId}`,
+      refreshToken,
+      "EX",
+      30 * 24 * 60 * 60
+    );
 
     const safeUser = {
-      id: user.id,
+      id: userId,
       email: user.email,
       username: user.username,
       name: user.name,
@@ -266,6 +280,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
   }
 };
 
+// refresh access token controller
 export const refreshAccessToken = async (req: Request, res: Response) => {
   try {
     const refreshToken = req.cookies.refreshToken;

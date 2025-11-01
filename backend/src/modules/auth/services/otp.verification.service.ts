@@ -1,6 +1,6 @@
-import { sendMail } from "../config/mail.js";
-import { generateOtp } from "../utils/otp.js"
-import { canResendOtp, saveOtpForUser, setResendCooldown } from "./otp.service.js";
+import { sendMail } from "../../../config/mail.js";
+import { generateOtp } from "../../../common/utils/otp.js"
+import { canResendOtp, saveOtpForUser, setResendCooldown } from "../../../common/services/otp.redis.service.js";
 
 export const createAndSendOtp = async (userId:number,userEmail : string)=>{
 

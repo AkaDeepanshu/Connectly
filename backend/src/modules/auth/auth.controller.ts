@@ -1,11 +1,11 @@
 import type { Request, Response } from "express";
-import prisma from "../config/db.js";
+import prisma from "../../config/prisma.js";
 import bcrypt from "bcryptjs";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt.js";
-import { createAndSendOtp } from "../services/otp.verification.service.js";
-import redis from "../config/redis.js";
+import { generateAccessToken, generateRefreshToken } from "../../common/utils/jwt.js";
+import { createAndSendOtp } from "./services/otp.verification.service.js";
+import redis from "../../config/redis.js";
 import jwt from "jsonwebtoken";
-import { verifyOtpForUser } from "../services/otp.service.js";
+import { verifyOtpForUser } from "../../common/services/otp.redis.service.js";
 
 // signup controller
 export const signup = async (req: Request, res: Response) => {

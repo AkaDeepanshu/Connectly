@@ -52,9 +52,10 @@ model Message {
   id                 BigInt               @id @default(autoincrement())
   room_id            BigInt?
   sender_id          BigInt?
+  client_msg_id      String?              @db.VarChar(255)
   content            String?
   type               String?              @default("text") @db.VarChar(50)
-  is_deleted         Boolean?             @default(false)
+  delivery_status    String?              @default("pending") @db.VarChar(50)
   created_at         DateTime?            @default(now()) @db.Timestamp(6)
   ChatRoom           ChatRoom?            @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   User               User?                @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -63,6 +64,7 @@ model Message {
   MessageRead        MessageRead[]
   Notifications      Notifications[]
 
+  @@unique([client_msg_id, sender_id])
   @@index([room_id], map: "idx_message_room")
   @@index([sender_id], map: "idx_message_sender")
 }

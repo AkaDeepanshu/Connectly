@@ -3,11 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const redis = new Redis(process.env.REDIS_URI as string);
+const REDIS_URI = process.env.REDIS_URI as string;
 
-redis.on('error', err => console.log('Redis Client Error', err));
-redis.on('connect', ()=> console.log("Redis connected successfully"));
+export const redisPub = new Redis(REDIS_URI);
+export const redisSub = new Redis(REDIS_URI);
 
-export default redis;
-
+export function createRedisClient(){
+    return new Redis(REDIS_URI);
+}
 

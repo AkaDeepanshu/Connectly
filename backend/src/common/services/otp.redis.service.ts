@@ -1,5 +1,7 @@
-import redis from '../../config/redis.js';
+import {createRedisClient} from '../../config/redis.js';
 import { hashOtp, verifyOtpHash } from '../utils/otp.js';
+
+const redis = createRedisClient();
 
 const OTP_TTL = Number(process.env.OTP_EXPIRY_MINUTES || 10) * 60;
 const RESEND_TTL = Number(process.env.OTP_RESEND_COOLDOWN || 30);

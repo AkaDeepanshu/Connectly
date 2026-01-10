@@ -1,6 +1,13 @@
 import { Socket } from "socket.io";
 
-interface SocketUser extends Socket {
+export interface SocketUser extends Socket {
     userId : string;
 }
-export { SocketUser};
+
+export type SendMessagePayload = {
+    client_msg_id : string;
+    room_id : string;
+    content? : string;
+    type? : 'text' | 'image' | 'file' | string;
+    attachments? : Array<{url: string, file_type?: string }>;
+}

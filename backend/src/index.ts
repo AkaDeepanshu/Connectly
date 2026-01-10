@@ -22,13 +22,11 @@ app.use("/api/v1/auth", authRoutes);
 
 // Create HTTP server and attach Socket.io
 const server = http.createServer(app);
-const socketServer = new SocketService();
-socketServer.io.attach(server);
+const socketServer = new SocketService(server);
 
 // Start server
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
 
-// Initialize Socket Listeners
-socketServer.InitListeners();
+export default app;

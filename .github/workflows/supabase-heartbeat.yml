@@ -1,4 +1,4 @@
-name: Supabase Heartbeat
+name: Supabase & Redis Heartbeat
 
 on:
   schedule:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Install PostgreSQL client
-        run: sudo apt-get install -y postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Touch Supabase DB
         env:
@@ -23,3 +23,11 @@ jobs:
             -d ${{ secrets.DB_NAME }} \
             -p ${{ secrets.DB_PORT }} \
             -c "UPDATE heartbeat SET last_seen = NOW() WHERE id = 1;"
+
+      - name: Heartbeat Upstash Redis
+        env:
+          UPSTASH_REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+          UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_TOKEN }}
+        run: |
+          curl -X POST "$UPSTASH_REDIS_URL/set/heartbeat/$(date +%s)?EX=86400" \
+            -H "Authorization: Bearer $UPSTASH_REDIS_TOKEN"

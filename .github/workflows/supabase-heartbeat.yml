@@ -1,0 +1,25 @@
+name: Supabase Heartbeat
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # runs daily at 3 AM UTC
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Touch Supabase DB
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          psql \
+            -h ${{ secrets.DB_HOST }} \
+            -U ${{ secrets.DB_USER }} \
+            -d ${{ secrets.DB_NAME }} \
+            -p ${{ secrets.DB_PORT }} \
+            -c "UPDATE heartbeat SET last_seen = NOW() WHERE id = 1;"

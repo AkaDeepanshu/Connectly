@@ -4,7 +4,7 @@ import { isUserMemberOfRoom } from "../../modules/chat/chat.service.js";
 
 export function registerChatEvents(io: Server){
 
-    io.on('connection',(socketRaw)=>{
+    io.on('connect',(socketRaw)=>{
         const socket = socketRaw as SocketUser;
         const userId = socket.userId;
         if(!userId) {

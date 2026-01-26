@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import SocketService from "./socket/socket.service.js";
 import { startMessageConsumer } from "./services/kafka.js";
 import { registerSocket } from "./socket/index.js";
+import { globalErrorHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +21,9 @@ app.use(express.json());
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
+
+// Global Error Handler
+app.use(globalErrorHandler);
 
 // Create HTTP server
 const httpServer = http.createServer(app);

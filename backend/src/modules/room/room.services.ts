@@ -1,3 +1,4 @@
+import { ForbiddenError, NotFoundError } from "../../errors/http.error.js";
 import prisma from "../../services/prisma.js";
 import { RoomRepository } from "./room.repository.js";
 
@@ -24,7 +25,7 @@ export class RoomService {
       await prisma.$queryRaw`SELECT * FROM User WHERE id = ${userId}`;
 
     if (!user || user.length === 0) {
-      throw new Error("User not found");
+      throw new NotFoundError("User not found");
     }
 
     const rooms: any[] = await prisma.$queryRaw`
@@ -50,11 +51,11 @@ export class RoomService {
     const participants = Array.from(participantsSet);
 
     if (!isGroup && participants.length !== 2) {
-      throw new Error("Direct rooms must have exactly 2 participants");
+      throw new ForbiddenError("Direct rooms must have exactly 2 participants");
     }
 
     if (isGroup && participants.length < 3) {
-      throw new Error("Group rooms must have at least 3 participants");
+      throw new ForbiddenError("Group rooms must have at least 3 participants");
     }
 
     if (!isGroup) {
@@ -100,10 +101,10 @@ export class RoomService {
         AND cru.user_id = ${userId};
     `;
 
-      if (room.length === 0) throw new Error("Room not found");
-      if (!room[0].is_group) throw new Error("Cannot update a direct room");
+      if (room.length === 0) throw new NotFoundError("Room not found");
+      if (!room[0].is_group) throw new ForbiddenError("Cannot update a direct room");
       if (room[0].role !== "admin")
-        throw new Error("Only admins can update the room");
+        throw new ForbiddenError("Only admins can update the room");
 
       const [updatedRoom] = await tx.$queryRaw<any[]>`
       UPDATE "ChatRoom"
@@ -136,9 +137,9 @@ export class RoomService {
       AND cru.user_id = ${userId};
   `;
 
-      if (room.length === 0) throw new Error("Room not found");
-      if (!room[0].is_group) throw new Error("Cannot delete a direct room");
-      if (room[0].role !== "admin") throw new Error("Only admins can delete");
+      if (room.length === 0) throw new NotFoundError("Room not found");
+      if (!room[0].is_group) throw new ForbiddenError("Cannot delete a direct room");
+      if (room[0].role !== "admin") throw new ForbiddenError("Only admins can delete");
 
       await tx.$executeRaw`
     DELETE FROM "ChatRoom" WHERE id = ${roomId};

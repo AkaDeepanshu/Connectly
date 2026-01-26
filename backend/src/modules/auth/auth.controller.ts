@@ -6,6 +6,7 @@ import { createAndSendOtp } from "./services/otp.verification.service.js";
 import { getRedisCache} from "../../services/redis.js";
 import jwt from "jsonwebtoken";
 import { verifyOtpForUser } from "../../common/services/otp.redis.service.js";
+import { BadRequestError, NotFoundError } from "../../errors/http.error.js";
 
 const redis = getRedisCache();
 
@@ -85,9 +86,7 @@ export const login = async (req: Request, res: Response) => {
 
   // Validations
   if (!identifier || !password) {
-    return res.status(400).json({
-      message: "Identifier and password are required",
-    });
+    throw new BadRequestError("Identifier and password are required");
   }
 
   try {
@@ -102,17 +101,13 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(400).json({
-        message: "User not found",
-      });
+      throw new NotFoundError("User not found");
     }
 
     // compare password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({
-        message: "Invalid password",
-      });
+      throw new BadRequestError("Invalid password");
     }
 
     // check if user is verified

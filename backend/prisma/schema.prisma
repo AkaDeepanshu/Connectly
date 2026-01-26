@@ -9,55 +9,79 @@ datasource db {
 
 model CallSessions {
   id           BigInt    @id @default(autoincrement())
-  room_id      BigInt?
-  initiator_id BigInt?
+  room_id      BigInt
+  initiator_id BigInt
   call_type    String    @db.VarChar(50)
   status       String?   @default("ongoing") @db.VarChar(50)
-  started_at   DateTime? @db.Timestamptz(6)
+  started_at   DateTime  @db.Timestamp(6)
   ended_at     DateTime? @db.Timestamp(6)
-  User         User?     @relation(fields: [initiator_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  ChatRoom     ChatRoom? @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  User     User?     @relation(fields: [initiator_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ChatRoom ChatRoom? @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model ChatRoom {
-  id            BigInt          @id @default(autoincrement())
-  room_name     String?         @db.VarChar(255)
-  is_group      Boolean
-  profile_pic   String?         @db.VarChar(255)
-  description   String?
-  created_at    DateTime?       @default(now()) @db.Timestamp(6)
-  updated_at    DateTime?       @default(now()) @db.Timestamp(6)
+  id          BigInt   @id @default(autoincrement())
+  room_name   String?  @db.VarChar(255)
+  is_group    Boolean  @default(false)
+  profile_pic String?  @db.VarChar(255)
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @updatedAt @db.Timestamp(6)
+
   CallSessions  CallSessions[]
   ChatRoomUsers ChatRoomUsers[]
   Message       Message[]
   Notifications Notifications[]
 }
 
+enum ChatRoomUserRole {
+  member
+  admin
+}
+
 model ChatRoomUsers {
-  id        BigInt    @id @default(autoincrement())
-  room_id   BigInt?
-  user_id   BigInt?
-  role      String?   @default("member") @db.VarChar(50)
-  joined_at DateTime? @default(now()) @db.Timestamp(6)
-  ChatRoom  ChatRoom? @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User      User?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id        BigInt           @id @default(autoincrement())
+  room_id   BigInt
+  user_id   BigInt
+  role      ChatRoomUserRole @default(member)
+  joined_at DateTime         @default(now()) @db.Timestamp(6)
+
+  ChatRoom ChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User     User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([room_id, user_id])
   @@index([room_id], map: "idx_chatroomusers_room")
   @@index([user_id], map: "idx_chatroomusers_user")
 }
 
+enum MessageType {
+  text
+  image
+  video
+  file
+}
+
+enum DeliveryStatus {
+  pending
+  sent
+  delivered
+  read
+}
+
 model Message {
-  id                 BigInt               @id @default(autoincrement())
-  room_id            BigInt?
-  sender_id          BigInt?
-  content            String?
-  type               String?              @default("text") @db.VarChar(50)
-  created_at         DateTime?            @default(now()) @db.Timestamp(6)
-  client_msg_id      String?              @db.VarChar(255)
-  delivery_status    String?              @default("pending") @db.VarChar(50)
-  ChatRoom           ChatRoom?            @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User               User?                @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id              BigInt         @id @default(autoincrement())
+  room_id         BigInt
+  sender_id       BigInt
+  content         String?
+  type            MessageType    @default(text)
+  delivery_status DeliveryStatus @default(pending)
+
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  client_msg_id String   @db.VarChar(255)
+
+  ChatRoom           ChatRoom             @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User               User                 @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   MessageAttachments MessageAttachments[]
   MessageReactions   MessageReactions[]
   MessageRead        MessageRead[]
@@ -66,65 +90,93 @@ model Message {
   @@unique([client_msg_id, sender_id])
   @@index([room_id], map: "idx_message_room")
   @@index([sender_id], map: "idx_message_sender")
+  @@index([room_id, created_at], map: "idx_message_room_createdat")
 }
 
 model MessageAttachments {
-  id          BigInt    @id @default(autoincrement())
-  message_id  BigInt?
-  file_url    String    @db.VarChar(255)
-  file_type   String    @db.VarChar(50)
-  uploaded_at DateTime? @default(now()) @db.Timestamp(6)
-  Message     Message?  @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id          BigInt   @id @default(autoincrement())
+  message_id  BigInt
+  file_url    String   @db.VarChar(255)
+  mime_type   String   @db.VarChar(100)
+  file_size   Int
+  uploaded_at DateTime @default(now()) @db.Timestamp(6)
+
+  Message Message @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([message_id], map: "idx_messageattachments_message")
 }
 
 model MessageReactions {
-  id         BigInt    @id @default(autoincrement())
-  message_id BigInt?
-  user_id    BigInt?
-  reaction   String    @db.VarChar(50)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  Message    Message?  @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User       User?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id         BigInt   @id @default(autoincrement())
+  message_id BigInt
+  user_id    BigInt
+  reaction   String   @db.VarChar(50)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  Message Message @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User    User    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([message_id, user_id, reaction])
+  @@index([message_id], map: "idx_messagereactions_message")
 }
 
 model MessageRead {
-  id         BigInt    @id @default(autoincrement())
-  message_id BigInt?
-  user_id    BigInt?
-  read_at    DateTime? @default(now()) @db.Timestamp(6)
-  Message    Message?  @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User       User?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id         BigInt   @id @default(autoincrement())
+  message_id BigInt
+  user_id    BigInt
+  read_at    DateTime @default(now()) @db.Timestamp(6)
+  Message    Message  @relation(fields: [message_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User       User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([message_id, user_id])
+  @@index([message_id], map: "idx_messageread_message")
+}
+
+enum NotificationType {
+  message
+  mention
+  reaction
+  call
+  system
 }
 
 model Notifications {
-  id         BigInt    @id @default(autoincrement())
-  user_id    BigInt?
-  type       String    @db.VarChar(50)
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  type       NotificationType   @default(message)
   message_id BigInt?
   room_id    BigInt?
   content    String
-  is_read    Boolean?  @default(false)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  Message    Message?  @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ChatRoom   ChatRoom? @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User       User?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  Message  Message?  @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ChatRoom ChatRoom? @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User     User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, is_read], map: "idx_notifications_user_isread")
+  @@index([user_id, created_at], map: "idx_notifications_user_createdat")
+}
+
+enum UserStatus {
+  pending
+  verified
+  suspended
+  deleted
 }
 
 model User {
-  id                                           BigInt             @id @default(autoincrement())
-  name                                         String             @db.VarChar(255)
-  email                                        String             @unique @db.VarChar(255)
-  username                                     String             @unique @db.VarChar(255)
-  password                                     String             @db.VarChar(255)
-  is_active                                    Boolean?           @default(true)
-  profile_pic                                  String?            @db.VarChar(255)
-  created_at                                   DateTime?          @default(now()) @db.Timestamp(6)
-  updated_at                                   DateTime?          @default(now()) @db.Timestamp(6)
-  status                                       UserStatus         @default(pending)
+  id          BigInt     @id @default(autoincrement())
+  name        String     @db.VarChar(255)
+  email       String     @unique @db.VarChar(255)
+  username    String     @unique @db.VarChar(255)
+  password    String     @db.VarChar(255)
+  is_active   Boolean    @default(true)
+  profile_pic String?    @db.VarChar(255)
+  created_at  DateTime   @default(now()) @db.Timestamp(6)
+  updated_at  DateTime   @updatedAt @db.Timestamp(6)
+  status      UserStatus @default(pending)
+
   CallSessions                                 CallSessions[]
   ChatRoomUsers                                ChatRoomUsers[]
   Message                                      Message[]
@@ -137,35 +189,38 @@ model User {
 }
 
 model UserBlockList {
-  id                                  BigInt    @id @default(autoincrement())
-  blocker_id                          BigInt?
-  blocked_id                          BigInt?
-  blocked_at                          DateTime? @default(now()) @db.Timestamp(6)
-  User_UserBlockList_blocked_idToUser User?     @relation("UserBlockList_blocked_idToUser", fields: [blocked_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User_UserBlockList_blocker_idToUser User?     @relation("UserBlockList_blocker_idToUser", fields: [blocker_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                                  BigInt   @id @default(autoincrement())
+  blocker_id                          BigInt
+  blocked_id                          BigInt
+  blocked_at                          DateTime @default(now()) @db.Timestamp(6)
+  User_UserBlockList_blocked_idToUser User     @relation("UserBlockList_blocked_idToUser", fields: [blocked_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User_UserBlockList_blocker_idToUser User     @relation("UserBlockList_blocker_idToUser", fields: [blocker_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([blocker_id, blocked_id])
+  @@index([blocker_id], map: "idx_userblocklist_blocker")
+  @@index([blocked_id], map: "idx_userblocklist_blocked")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+enum Gender {
+  male
+  female
+  other
+}
+
 model UserProfile {
   id       BigInt    @id @default(autoincrement())
-  user_id  BigInt?   @unique
-  gender   String?   @db.VarChar(20)
+  user_id  BigInt    @unique
+  gender   Gender?
   dob      DateTime? @db.Date
   bio      String?   @db.VarChar(500)
   settings Json?     @default("{}")
-  User     User?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  User User @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model heartbeat {
+model Heartbeat {
   id        Int      @id @default(1)
   last_seen DateTime @db.Timestamp(6)
-}
-
-enum UserStatus {
-  pending
-  verified
-  suspended
-  deleted
 }

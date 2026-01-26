@@ -27,7 +27,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({children}) =>{
 
     const sendMessage:ISocketContext["sendMessage"] = useCallback((msg)=>{
         console.log("Send Message", msg);
-        socket?.emit("event:msg",{message:msg})
+        socket?.emit("message:send",{message:msg})
     },[socket]) 
 
     const onMessageReceived = useCallback((msg:string)=>{
@@ -40,13 +40,13 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({children}) =>{
         const _socket = io("http://localhost:5000");
         setSocket(_socket);
 
-        _socket.on("message",onMessageReceived);
+        _socket.on("message:new",onMessageReceived);
 
-        _socket.on("connect", () => {
+        _socket.on("connection", () => {
             console.log("Connected to socket server");
         });
         return () => {
-            _socket.off("message",onMessageReceived);
+            _socket.off("message:new",onMessageReceived);
             _socket.disconnect();
             setSocket(undefined);
         };

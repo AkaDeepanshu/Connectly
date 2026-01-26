@@ -4,6 +4,7 @@ import authRoutes from './modules/auth/auth.route.js'
 import cookieParser from "cookie-parser";
 import SocketService from "./socket/socket.service.js";
 import { startMessageConsumer } from "./services/kafka.js";
+import { registerSocket } from "./socket/index.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,7 +14,6 @@ const PORT = process.env.PORT || 5000;
   return this.toString(); // or Number(this) if safe
 };
 
-
 // Middleware
 app.use(cookieParser());
 app.use(express.json());
@@ -21,15 +21,18 @@ app.use(express.json());
 // Routes
 app.use("/api/v1/auth", authRoutes);
 
-// Create HTTP server and attach Socket.io
+// Create HTTP server
 const httpServer = http.createServer(app);
-const socketService = new SocketService(httpServer);
-
 // Start server
 httpServer.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
 
-socketService.initListeners();
+// Initialize Socket Service
+const socketService = new SocketService(httpServer);
+const io = socketService.io;
+registerSocket(io);
+
+// Start Kafka consumer
 startMessageConsumer();
 export default app;

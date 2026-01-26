@@ -1,8 +1,8 @@
-name: Supabase & Redis Heartbeat
+name: Supabase, Redis & Kafka Heartbeat
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # runs daily at 3 AM UTC
+    - cron: "30 21 * * *"   # runs daily at 3 AM IST
   workflow_dispatch:
 
 jobs:
@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ------------------------------
+      # Supabase Heartbeat
+      # ------------------------------
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
@@ -24,6 +27,9 @@ jobs:
             -p ${{ secrets.DB_PORT }} \
             -c "UPDATE heartbeat SET last_seen = NOW() WHERE id = 1;"
 
+      # ------------------------------
+      # Redis Heartbeat
+      # ------------------------------
       - name: Heartbeat Upstash Redis
         env:
           UPSTASH_REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
@@ -31,3 +37,64 @@ jobs:
         run: |
           curl -X POST "$UPSTASH_REDIS_URL/set/heartbeat/$(date +%s)?EX=86400" \
             -H "Authorization: Bearer $UPSTASH_REDIS_TOKEN"
+
+      # ------------------------------
+      # Kafka Heartbeat (Aiven)
+      # ------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install KafkaJS
+        run: npm install kafkajs
+
+      - name: Kafka Heartbeat
+        env:
+          KAFKA_BROKER: ${{ secrets.KAFKA_BROKER }}
+          KAFKA_USERNAME: ${{ secrets.KAFKA_USERNAME }}
+          KAFKA_PASSWORD: ${{ secrets.KAFKA_PASSWORD }}
+          KAFKA_CA_PEM: ${{ secrets.KAFKA_CA_PEM }}
+        run: |
+          node <<'EOF'
+          const { Kafka } = require("kafkajs");
+
+          const kafka = new Kafka({
+            clientId: "github-heartbeat",
+            brokers: [process.env.KAFKA_BROKER],
+            ssl: {
+              ca: [process.env.KAFKA_CA_PEM],
+            },
+            sasl: {
+              mechanism: "plain",
+              username: process.env.KAFKA_USERNAME,
+              password: process.env.KAFKA_PASSWORD,
+            },
+          });
+
+          async function run() {
+            const producer = kafka.producer();
+            await producer.connect();
+
+            await producer.send({
+              topic: "HEARTBEAT",
+              messages: [
+                {
+                  key: "heartbeat",
+                  value: JSON.stringify({
+                    source: "github-actions",
+                    timestamp: new Date().toISOString(),
+                  }),
+                },
+              ],
+            });
+
+            await producer.disconnect();
+            console.log("✅ Kafka heartbeat sent");
+          }
+
+          run().catch(err => {
+            console.error("❌ Kafka heartbeat failed", err);
+            process.exit(1);
+          });
+          EOF

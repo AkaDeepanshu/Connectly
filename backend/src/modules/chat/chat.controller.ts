@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../../types/auth.js";
-import prisma from "../../config/prisma.js";
+import prisma from "../../services/prisma.js";
 import { getOrCreateDirectRoom } from "./chat.service.js";
 
 export const createOrGetDMHandler = async (req: AuthRequest, res: Response)=>{

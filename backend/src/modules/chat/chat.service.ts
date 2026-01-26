@@ -1,4 +1,4 @@
-import prisma from "../../config/prisma.js";
+import prisma from "../../services/prisma.js";
 
 // Return existing 1:1 chat room between two users or create it
 export const getOrCreateDirectRoom = async (userAId: number, userBId : number)=>{

@@ -3,6 +3,7 @@ import http from 'http';
 import authRoutes from './modules/auth/auth.route.js'
 import cookieParser from "cookie-parser";
 import SocketService from "./socket/socket.service.js";
+import { startMessageConsumer } from "./services/kafka.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,12 +22,14 @@ app.use(express.json());
 app.use("/api/v1/auth", authRoutes);
 
 // Create HTTP server and attach Socket.io
-const server = http.createServer(app);
-const socketServer = new SocketService(server);
+const httpServer = http.createServer(app);
+const socketService = new SocketService(httpServer);
 
 // Start server
-server.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
 
+socketService.initListeners();
+startMessageConsumer();
 export default app;

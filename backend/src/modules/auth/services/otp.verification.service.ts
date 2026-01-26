@@ -1,4 +1,4 @@
-import { sendMail } from "../../../config/mail.js";
+import { sendMail } from "../../../services/mail.js";
 import { generateOtp } from "../../../common/utils/otp.js"
 import { canResendOtp, saveOtpForUser, setResendCooldown } from "../../../common/services/otp.redis.service.js";
 

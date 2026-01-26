@@ -11,6 +11,8 @@ export default function Home(){
     sendMessage(message);
     setMessage("");
   }
+
+  console.log("Messages:", messages);
   return (
     <div>
       <div>

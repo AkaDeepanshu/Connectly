@@ -3,9 +3,6 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {io, Socket} from 'socket.io-client';
 
-interface SocketProviderProps {
-    children?: React.ReactNode;
-}
 interface ISocketContext {
     sendMessage: (message:string)=>any;
     messages:string[];
@@ -17,6 +14,10 @@ export const useSocket = () =>{
     const state = useContext(SocketContext);
     if(!state) throw new Error('state is not defined');
     return state;
+};
+
+interface SocketProviderProps {
+    children?: React.ReactNode;
 }
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({children}) =>{
@@ -26,7 +27,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({children}) =>{
 
     const sendMessage:ISocketContext["sendMessage"] = useCallback((msg)=>{
         console.log("Send Message", msg);
-        socket?.emit("event:message",{message:msg})
+        socket?.emit("event:msg",{message:msg})
     },[socket]) 
 
     const onMessageReceived = useCallback((msg:string)=>{
@@ -37,8 +38,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({children}) =>{
 
     useEffect(()=>{
         const _socket = io("http://localhost:5000");
-        _socket.on("message",onMessageReceived);
         setSocket(_socket);
+
+        _socket.on("message",onMessageReceived);
 
         _socket.on("connect", () => {
             console.log("Connected to socket server");

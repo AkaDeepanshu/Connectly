@@ -5,6 +5,8 @@ import { PrismaClient } from '@prisma/client'
 const connectionString = `${process.env.DATABASE_URL}`
 
 const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter })
+const prisma = new PrismaClient({ adapter,
+    log: ['query', 'info', 'warn', 'error'],
+ })
 
 export default prisma

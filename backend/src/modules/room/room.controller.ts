@@ -129,24 +129,129 @@ export const deleteRoomHandler = async (req: AuthRequest, res: Response) => {
   });
 };
 
-export const leaveRoomHandler = async (req: AuthRequest, res: Response) => {};
+export const leaveRoomHandler = async (req: AuthRequest, res: Response) => {
+  const { roomId } = req.params;
+  const userId = req.userId;
+  if (!userId) {
+    throw new UnauthorizedError();
+  }
+  if (!roomId || Array.isArray(roomId)) {
+    throw new BadRequestError("Room ID is required");
+  }
+  await RoomService.leaveRoom({
+    roomId: BigInt(roomId),
+    userId: BigInt(userId),
+  });
+  return res.status(200).json({
+    status: "success",
+    message: "Left the room successfully",
+  });
+};
 
 export const addMemberToRoomHandler = async (
   req: AuthRequest,
   res: Response,
-) => {};
+) => {
+  const userId = req.userId;
+  const { roomId } = req.params;
+  const { member_id } = req.body;
+
+  if (!userId) {
+    throw new UnauthorizedError();
+  }
+  if (!roomId || Array.isArray(roomId)) {
+    throw new BadRequestError("Room ID is required");
+  }
+  if (!member_id) {
+    throw new BadRequestError("Member ID is required");
+  }
+
+  const newMember = await RoomService.addMember({
+    roomId: BigInt(roomId),
+    addedByUserId: BigInt(userId),
+    memberId: BigInt(member_id),
+  });
+
+  return res.status(200).json({
+    status: "success",
+    member: newMember,
+  });
+};
 
 export const removeMemberFromRoomHandler = async (
   req: AuthRequest,
   res: Response,
-) => {};
+) => {
+  const userId = req.userId;
+  const { roomId, memberId } = req.params;
+  if (!userId) {
+    throw new UnauthorizedError();
+  }
+  if (!roomId || Array.isArray(roomId)) {
+    throw new BadRequestError("Room ID is required");
+  }
+  if (!memberId || Array.isArray(memberId)) {
+    throw new BadRequestError("Member ID is required");
+  }
+  await RoomService.removeMember({
+    roomId: BigInt(roomId),
+    removedByUserId: BigInt(userId),
+    memberId: BigInt(memberId),
+  });
+  return res.status(200).json({
+    status: "success",
+    message: "Member removed successfully",
+  });
+};
 
-export const getRoomMembersHandler = async (
+export const getRoomAllMembersHandler = async (
   req: AuthRequest,
   res: Response,
-) => {};
+) => {
+  const { roomId } = req.params;
+  const userId = req.userId;
+  if (!userId) {
+    throw new UnauthorizedError();
+  }
+  if (!roomId || Array.isArray(roomId)) {
+    throw new BadRequestError("Room ID is required");
+  }
+  const members = await RoomService.getAllMembersInRoom(BigInt(roomId));
+
+  return res.status(200).json({
+    status: "success",
+    members: members,
+  });
+};
 
 export const changeMemberRoleHandler = async (
   req: AuthRequest,
   res: Response,
-) => {};
+) => {
+  const userId = req.userId;
+  const { roomId, memberId } = req.params;
+  const { new_role } = req.body;
+  if (!userId) {
+    throw new UnauthorizedError();
+  }
+  if (!roomId || Array.isArray(roomId)) {
+    throw new BadRequestError("Room ID is required");
+  }
+  if (!memberId || Array.isArray(memberId)) {
+    throw new BadRequestError("Member ID is required");
+  }
+  if (!new_role || (new_role !== "admin" && new_role !== "member")) {
+    throw new BadRequestError("New role must be either 'admin' or 'member'");
+  }
+  await RoomService.changeMemberRole({
+    roomId: BigInt(roomId),
+    changedByUserId: BigInt(userId),
+    memberId: BigInt(memberId),
+    newRole: new_role,
+  });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Member role changed successfully",
+  });
+};

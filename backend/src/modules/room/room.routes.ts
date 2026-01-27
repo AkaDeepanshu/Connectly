@@ -5,8 +5,8 @@ import {
   createRoomHandler,
   deleteRoomHandler,
   getAllRoomsHandler,
+  getRoomAllMembersHandler,
   getRoomByIdHandler,
-  getRoomMembersHandler,
   leaveRoomHandler,
   removeMemberFromRoomHandler,
   updateRoomHandler ,
@@ -24,6 +24,6 @@ router
   .post("/:roomId/leave", verifyToken, leaveRoomHandler)
   .post("/:roomId/members", verifyToken, addMemberToRoomHandler)
   .delete("/:roomId/members/:memberId", verifyToken, removeMemberFromRoomHandler)
-  .get("/:roomId/members", verifyToken, getRoomMembersHandler)
+  .get("/:roomId/members", verifyToken, getRoomAllMembersHandler)
   .patch("/:roomId/members/:memberId/role", verifyToken, changeMemberRoleHandler);
 export default router;

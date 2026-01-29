@@ -12,6 +12,7 @@ import {
   updateRoomHandler ,
 } from "./room.controller.js";
 import { verifyToken } from "../auth/auth.middleware.js";
+import { getRoomMessagesHandler } from "../message/message.controller.js";
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router
   .post("/:roomId/members", verifyToken, addMemberToRoomHandler)
   .delete("/:roomId/members/:memberId", verifyToken, removeMemberFromRoomHandler)
   .get("/:roomId/members", verifyToken, getRoomAllMembersHandler)
-  .patch("/:roomId/members/:memberId/role", verifyToken, changeMemberRoleHandler);
+  .patch("/:roomId/members/:memberId/role", verifyToken, changeMemberRoleHandler)
+  .get("/:roomId/messages", verifyToken, getRoomMessagesHandler);
 export default router;

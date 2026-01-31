@@ -24,7 +24,7 @@ export const globalErrorHandler = (
   }
 
   // Unknown / programming errors
-  console.error("UNHANDLED ERROR 💥", err);
+  console.error("UNHANDLED ERROR:", err);
 
   return res.status(500).json({
     status: "error",

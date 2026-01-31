@@ -1,3 +1,4 @@
+import { ChatRoomUserRole } from "@prisma/client";
 import { ForbiddenError, NotFoundError } from "../../errors/http.error.js";
 import prisma from "../../services/prisma.js";
 import { RoomRepository } from "./room.repository.js";
@@ -79,7 +80,7 @@ export class RoomService {
         data: participants.map((userId) => ({
           room_id: room.id,
           user_id: userId,
-          role: isGroup && userId === creatorId ? "admin" : "member",
+          role: isGroup && userId === creatorId ? ChatRoomUserRole.admin : ChatRoomUserRole.member,
         })),
       });
 
@@ -104,7 +105,7 @@ export class RoomService {
       if (room.length === 0) throw new NotFoundError("Room not found");
       if (!room[0].is_group)
         throw new ForbiddenError("Cannot update a direct room");
-      if (room[0].role !== "admin")
+      if (room[0].role !== ChatRoomUserRole.admin)
         throw new ForbiddenError("Only admins can update the room");
 
       const [updatedRoom] = await tx.$queryRaw<any[]>`
@@ -141,7 +142,7 @@ export class RoomService {
       if (room.length === 0) throw new NotFoundError("Room not found");
       if (!room[0].is_group)
         throw new ForbiddenError("Cannot delete a direct room");
-      if (room[0].role !== "admin")
+      if (room[0].role !== ChatRoomUserRole.admin)
         throw new ForbiddenError("Only admins can delete");
 
       await tx.$executeRaw`
@@ -180,13 +181,13 @@ export class RoomService {
   }) {
     await prisma.$transaction(async (tx) => {
       const room = await tx.$queryRaw<any[]>`
-      select cr.*, cru.role form ChatRoom cr inner join ChatRoomUsers cru
+      select cr.*, cru.role from "ChatRoom" cr inner join "ChatRoomUsers" cru
       on cr.id = cru.room_id where cr.id = ${roomId} and cru.user_id = ${addedByUserId}`;
 
       if (room.length === 0) throw new NotFoundError("Room not found");
       if (!room[0].is_group)
         throw new ForbiddenError("Cannot add members to a direct room");
-      if (room[0].role !== "admin")
+      if (room[0].role !== ChatRoomUserRole.admin)
         throw new ForbiddenError("Only admins can add members");
 
       const existingMembership = await tx.$queryRaw<any[]>`
@@ -197,7 +198,7 @@ export class RoomService {
 
       const [newMember] = await tx.$queryRaw<any[]>`
       insert into ChatRoomUsers (room_id, user_id, role)
-      values (${roomId}, ${memberId}, ${"member"})`;
+      values (${roomId}, ${memberId}, ${ChatRoomUserRole.member})`;
 
       return newMember;
     });
@@ -213,12 +214,12 @@ export class RoomService {
   }) {
     await prisma.$transaction(async (tx) => {
       const room = await tx.$queryRaw<any[]>`
-      select cr.*, cru.role form ChatRoom cr inner join ChatRoomUsers cru
+      select cr.*, cru.role from "ChatRoom" cr inner join "ChatRoomUsers" cru
       on cr.id = cru.room_id where cr.id = ${roomId} and cru.user_id = ${removedByUserId}`;
       if (room.length === 0) throw new NotFoundError("Room not found");
       if (!room[0].is_group)
         throw new ForbiddenError("Cannot remove members from a direct room");
-      if (room[0].role !== "admin")
+      if (room[0].role !== ChatRoomUserRole.admin)
         throw new ForbiddenError("Only admins can remove members");
 
       const existingMembership = await tx.$queryRaw<any[]>`
@@ -241,32 +242,32 @@ export class RoomService {
     roomId: bigint;
     changedByUserId: bigint;
     memberId: bigint;
-    newRole: "admin" | "member";
+    newRole: ChatRoomUserRole;
   }) {
     await prisma.$transaction(async (tx) => {
       const room = await tx.$queryRaw<any[]>`
-        select cr.*, cru.role form ChatRoom cr inner join ChatRoomUsers cru
+        select cr.*, cru.role from "ChatRoom" cr inner join "ChatRoomUsers" cru
         on cr.id = cru.room_id where cr.id = ${roomId} and cru.user_id = ${changedByUserId}`;
 
       if (room.length === 0) throw new NotFoundError("Room not found");
       if (!room[0].is_group)
         throw new ForbiddenError("Cannot change member roles in a direct room");
-      if (room[0].role !== "admin")
+      if (room[0].role !== ChatRoomUserRole.admin)
         throw new ForbiddenError("Only admins can change member roles");
 
       const existingMembership = await tx.$queryRaw<any[]>`
-      select * from ChatRoomUsers where room_id = ${roomId} and user_id = ${memberId}`;
+      select * from "ChatRoomUsers" where room_id = ${roomId} and user_id = ${memberId}`;
       if (existingMembership.length === 0)
         throw new ForbiddenError("User is not a member of the room");
       await tx.$queryRaw<any[]>`
-      update ChatRoomUsers set role = ${newRole} where room_id = ${roomId} and user_id = ${memberId}`;
+      update "ChatRoomUsers" set role = ${newRole} where room_id = ${roomId} and user_id = ${memberId}`;
     });
   }
 
   static async getAllMembersInRoom(roomId: bigint) {
     const members = await prisma.$queryRaw<any[]>`
     select u.id, u.username, u.email, cru.role, cru.joined_at
-    from ChatRoomUsers cru inner join User u on cru.user_id = u.id
+    from "ChatRoomUsers" cru inner join "User" u on cru.user_id = u.id
     where cru.room_id = ${roomId}`;
     return members;
   }

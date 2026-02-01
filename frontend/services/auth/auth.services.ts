@@ -1,4 +1,3 @@
-
 import api from "../axios";
 import { LoginPayload, SignupPayload, VerifyOtpPayload } from "./auth.types";
 
@@ -11,5 +10,8 @@ export const authService = {
 
     verifyOtp: (payload: VerifyOtpPayload)=>
         api.post("/auth/verify-otp", payload),
+
+    refreshToken: ()=>
+        api.post("/auth/refresh"),
 
 }

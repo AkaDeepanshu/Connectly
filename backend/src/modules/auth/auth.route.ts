@@ -1,13 +1,13 @@
 import express from "express";
-import {checkUsernameAvailability, login, refreshAccessToken, signupHandler, verifyOtp} from './auth.controller.js';
+import {checkUsernameAvailabilityHandler, loginHandler, refreshAccessTokenHandler, signupHandler, verifyOtpHandler} from './auth.controller.js';
 const router = express.Router();
 
 router
     .post("/signup",signupHandler)
-    .post("/login", login)
-    .post("/check-username", checkUsernameAvailability)
-    .post("/verify-otp", verifyOtp)
-    .post("/refresh", refreshAccessToken)
+    .post("/login", loginHandler)
+    .post("/check-username", checkUsernameAvailabilityHandler)
+    .post("/verify-otp", verifyOtpHandler)
+    .post("/refresh", refreshAccessTokenHandler)
 //     .post("/resend-otp",ResendOtpController)
 
 

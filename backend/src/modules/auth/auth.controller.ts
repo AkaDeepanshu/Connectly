@@ -127,7 +127,7 @@ export const verifyOtpHandler = async (req: Request, res: Response) => {
 };
 
 // refresh access token controller
-export const refreshAccessToken = async (req: Request, res: Response) => {
+export const refreshAccessTokenHandler = async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {

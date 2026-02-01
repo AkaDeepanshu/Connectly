@@ -68,7 +68,7 @@ export class AuthService {
 
   static async login(identifier: string, password: string) {
     const users = await prisma.$queryRaw<any[]>`
-    select * form "User" where email = lower(${identifier}) or username = lower(${identifier}) limit 1`;
+    select * from "User" where email = lower(${identifier}) or username = lower(${identifier}) limit 1`;
 
     if (users.length === 0) {
       throw new NotFoundError("User not found");

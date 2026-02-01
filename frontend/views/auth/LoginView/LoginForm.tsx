@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useLogin } from "./useLogin";
 
 type LoginFormValues = {
   email: string;
@@ -20,7 +20,7 @@ type LoginFormValues = {
 };
 
 export default function LoginForm() {
-  const router = useRouter();
+  const { mutate, isPending, isError, error } = useLogin();
   const form = useForm<LoginFormValues>({
     defaultValues: {
       email: "",
@@ -29,13 +29,17 @@ export default function LoginForm() {
   });
 
   const onSubmit = (data: LoginFormValues) => {
-    console.log(data); // hook later
-    router.push("/verify-otp");
+    console.log(data);
+    mutate({
+      identifier: data.email,
+      password: data.password,
+    });
+
   };
 
   return (
     <div className="space-y-6">
-      
+
       {/* Heading */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Welcome back</h1>
@@ -47,18 +51,18 @@ export default function LoginForm() {
       {/* Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          
+
           {/* Email */}
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Email or Username</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="you@example.com"
-                    type="email"
+                    type="text"
                     {...field}
                   />
                 </FormControl>
@@ -87,11 +91,17 @@ export default function LoginForm() {
           />
 
           {/* Button */}
-          <Button type="submit" className="w-full">
-            Login
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Logging in..." : "Login"}
           </Button>
         </form>
       </Form>
+
+      {isError && (
+        <p className="text-sm text-red-500 text-center">
+          {(error as any)?.response?.data?.message || "Login failed"}
+        </p>
+      )}
 
       {/* Footer */}
       <p className="text-sm text-center text-muted-foreground">

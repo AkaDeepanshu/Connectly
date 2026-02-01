@@ -7,8 +7,11 @@ export const useSignup = () => {
 
   return useMutation({
     mutationFn: authService.signup,
-    onSuccess: () => {
-      router.push("/verify-otp");
+    onSuccess: (res) => {
+      if(res.data.requiresVerification){
+        router.push("/verify-otp");
+        return;
+      }
     },
   });
 };

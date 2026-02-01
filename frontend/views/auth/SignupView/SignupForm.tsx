@@ -35,6 +35,7 @@ export default function SignupForm() {
   });
 
   const onSubmit = (data: SignupFormValues) => {
+    
     console.log(data); // hook later
     router.push("/verify-otp");
   };

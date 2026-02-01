@@ -1,6 +1,7 @@
-import express,  { type Request, type Response } from "express";
-import http from 'http';
-import authRoutes from './modules/auth/auth.route.js'
+import express, { type Request, type Response } from "express";
+import http from "http";
+import cors from "cors";
+import authRoutes from "./modules/auth/auth.route.js";
 import cookieParser from "cookie-parser";
 import SocketService from "./socket/socket.service.js";
 import { startMessageConsumer } from "./services/kafka.js";
@@ -14,6 +15,15 @@ const PORT = process.env.PORT || 5000;
 (BigInt.prototype as any).toJSON = function () {
   return this.toString(); // or Number(this) if safe
 };
+
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 // Middleware
 app.use(cookieParser());

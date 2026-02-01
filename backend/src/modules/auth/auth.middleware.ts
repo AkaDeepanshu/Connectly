@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { verifyJWTAndGetUser } from "./services/auth.service.js";
+import { verifyJWTAndGetUser } from "./services/token.service.js";
 import { AuthRequest } from "../../types/auth.js";
 
 

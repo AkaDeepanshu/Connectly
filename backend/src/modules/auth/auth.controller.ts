@@ -1,87 +1,41 @@
 import type { Request, Response } from "express";
-import prisma from "../../services/prisma.js";
-import bcrypt from "bcryptjs";
-import { generateAccessToken, generateRefreshToken } from "../../common/utils/jwt.js";
-import { createAndSendOtp } from "./services/otp.verification.service.js";
-import { getRedisCache} from "../../services/redis.js";
-import jwt from "jsonwebtoken";
-import { verifyOtpForUser } from "../../common/services/otp.redis.service.js";
 import { BadRequestError, NotFoundError } from "../../errors/http.error.js";
+import { AuthService } from "./auth.service.js";
 
-const redis = getRedisCache();
 
 // signup controller
-export const signup = async (req: Request, res: Response) => {
+export const signupHandler = async (req: Request, res: Response) => {
   const { name, username, email, password, confirmPassword } = req.body;
 
   // Validations
   if (!name || !username || !email || !password || !confirmPassword) {
-    return res.status(400).json({
-      message: "All fields are required",
-    });
+    throw new BadRequestError("All fields are required");
   }
 
-  if (password !== confirmPassword) {
-    return res.status(400).json({
-      message: "Password and confirm password do not match",
-    });
-  }
+  const user = await AuthService.signup({
+    name,
+    username,
+    email,
+    password,
+    confirmPassword,
+  });
 
-  try {
-    // check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists with this email",
-      });
-    }
-    // check if username is taken
-    const existingUsername = await prisma.user.findUnique({
-      where: { username },
-    });
-    if (existingUsername) {
-      return res.status(400).json({
-        message: "Username is already taken",
-      });
-    }
-
-    // hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // create user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        username,
-        email,
-        password: hashedPassword,
-      },
-      select:{
-        id:true, email:true, username:true, name:true, status:true
-      }
-    });
-
-    console.log("User created:", user);
-
-    await createAndSendOtp(Number(user.id), user.email);
-
-    return res.status(201).json({
-      message:
-        "User created successfully. OTP sent to your email please verify your account.",
-      user,
-      redirect: "/verify-otp",
-    });
-  } catch (err: any) {
-    console.error("Error during signup:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: err.message,
-    });
-  }
+  return res.status(201).json({
+    message:
+      "User created successfully. OTP sent to your email please verify your account.",
+    newUser: {
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      status: user.status,
+    },
+    requiresVerification: true,
+    redirect: "/verify-otp",
+  });
 };
 
 // login controller
-export const login = async (req: Request, res: Response) => {
+export const loginHandler = async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
 
   // Validations
@@ -89,80 +43,35 @@ export const login = async (req: Request, res: Response) => {
     throw new BadRequestError("Identifier and password are required");
   }
 
-  try {
-    // find user by email or username
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: identifier.toLowerCase() },
-          { username: identifier.toLowerCase() },
-        ],
-      },
-    });
+  const result = await AuthService.login(identifier, password);
 
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-
-    // compare password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new BadRequestError("Invalid password");
-    }
-
-    // check if user is verified
-    if (user.status == "pending") {
-      await createAndSendOtp(Number(user.id), user.email);
-
-      return res.status(403).json({
-        message:
-          "User is not verified. OTP sent to your email please verify your account.",
-        email: user.email,
-        redirect: "/verify-otp",
-      });
-    }
-
-    // Generate token and return user
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
-
-    await redis.set(
-      `refresh:${user.id}`,
-      refreshToken,
-      "EX",
-      30 * 24 * 60 * 60
-    );
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
-
-    return res.status(200).json({
-      message: "Login successful",
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        username: user.username,
-      },
-      accessToken: accessToken,
-    });
-  } catch (err: any) {
-    console.error("Error during login:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: err.message,
+  if (result.requiresVerification) {
+    return res.status(403).json({
+      message:
+        "User not verified. OTP sent to your email please verify your account.",
+      email: result.email,
+      redirect: result.redirect,
     });
   }
+
+  res.cookie("refreshToken", result.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
+
+  return res.status(200).json({
+    message: "Login successful",
+    user: result.user,
+    accessToken: result.accessToken,
+  });
 };
 
 // check username availability controller
-export const checkUsernameAvailability = async (
+export const checkUsernameAvailabilityHandler = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   const { username } = req.query;
 
@@ -173,34 +82,25 @@ export const checkUsernameAvailability = async (
     });
   }
 
-  try {
-    // Check if username exists
-    const user = await prisma.user.findUnique({
-      where: { username: username.toString() },
-    });
+  const isAvailable = await AuthService.checkUsernameAvailability(
+    username as string,
+  );
 
-    if (user) {
-      return res.status(200).json({
-        message: "Username is taken",
-        available: false,
-      });
-    }
-
-    return res.status(200).json({
-      message: "Username is available",
-      available: true,
-    });
-  } catch (err: any) {
-    console.error("Error checking username availability:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: err.message,
+  if (!isAvailable) {
+    return res.status(409).json({
+      available: false,
+      message: "Username is already taken",
     });
   }
+
+  return res.status(200).json({
+    available: true,
+    message: "Username is available",
+  });
 };
 
 // verify otp controller
-export const verifyOtp = async (req: Request, res: Response) => {
+export const verifyOtpHandler = async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
   // Validations
@@ -210,103 +110,33 @@ export const verifyOtp = async (req: Request, res: Response) => {
     });
   }
 
-  try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return res.status(404).json({
-        message: "User Not Found",
-      });
-    }
-    const userId = Number(user.id);
-    const result = await verifyOtpForUser(userId, otp);
-    if(!result.success){
-      if(result.reason === 'blocked') return res.status(429).json({
-        error:"Too many invalid attempts. OTP verification is temporarily blocked. Please try again later.",
-      })
-      if(result.reason === 'not_found') return res.status(404).json({
-        message: "OTP not found or expired. Please request a new OTP.",
-      })
-      return res.status(400).json({
-        error:"invalid OTP",
-        attempts: result.attempts
-      })
-    }
+  const result = await AuthService.verifyOtp(email, otp);
 
-    // update status of user to verified
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: "verified" },
-    });
+  res.cookie("refreshToken", result.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  });
 
-    // generate token
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
-
-    await redis.set(
-      `refresh:${userId}`,
-      refreshToken,
-      "EX",
-      30 * 24 * 60 * 60
-    );
-
-    const safeUser = {
-      id: userId,
-      email: user.email,
-      username: user.username,
-      name: user.name,
-    };
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
-
-    return res.status(200).json({
-      message: "OTP verified successfully",
-      accessToken: accessToken,
-      user: safeUser,
-    });
-  } catch (err: any) {
-    console.error("Error verifying user otp:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: err.message,
-    });
-  }
+  return res.status(200).json({
+    message: "OTP verified successfully",
+    accessToken: result.accessToken,
+    user: result.user,
+  });
 };
 
 // refresh access token controller
 export const refreshAccessToken = async (req: Request, res: Response) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
+  const refreshToken = req.cookies.refreshToken;
 
-    if (!refreshToken) {
-      return res.status(401).json({
-        message: "Refresh token not found",
-      });
-    }
-
-    const decoded: any = jwt.verify(
-      refreshToken,
-      process.env.JWT_SECRET as string
-    );
-    const storedToken = await redis.get(`refresh:${decoded.userId}`);
-
-    if (!storedToken || storedToken !== refreshToken) {
-      return res.status(403).json({
-        message: "Invalid refresh token",
-      });
-    }
-
-    const accessToken = generateAccessToken(BigInt(decoded.userId));
-    return res.status(200).json({
-      accessToken,
-    });
-  } catch (err: any) {
-    return res
-      .status(403)
-      .json({ message: "Invalid or expired refresh token" });
+  if (!refreshToken) {
+    throw new BadRequestError("Refresh token not found");
   }
+
+  const result = await AuthService.refreshAccessToken(refreshToken);
+
+  return res.status(200).json({
+    accessToken: result.accessToken,
+  });
 };

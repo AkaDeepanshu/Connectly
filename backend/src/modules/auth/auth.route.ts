@@ -1,9 +1,9 @@
 import express from "express";
-import {checkUsernameAvailability, login, refreshAccessToken, signup, verifyOtp} from './auth.controller.js';
+import {checkUsernameAvailability, login, refreshAccessToken, signupHandler, verifyOtp} from './auth.controller.js';
 const router = express.Router();
 
 router
-    .post("/signup",signup)
+    .post("/signup",signupHandler)
     .post("/login", login)
     .post("/check-username", checkUsernameAvailability)
     .post("/verify-otp", verifyOtp)

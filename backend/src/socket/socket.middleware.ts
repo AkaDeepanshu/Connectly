@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { verifyJWTAndGetUser } from "../modules/auth/services/auth.service.js";
+import { verifyJWTAndGetUser } from "../modules/auth/services/token.service.js";
 import { SocketUser } from "../types/socket.js";
 
 export const socketAuthMiddleware = async (

@@ -13,6 +13,8 @@ import {
 import { useForm } from "react-hook-form";
 import Link from "next/link";
 import { useLogin } from "./useLogin";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 type LoginFormValues = {
   email: string;
@@ -21,6 +23,7 @@ type LoginFormValues = {
 
 export default function LoginForm() {
   const { mutate, isPending, isError, error } = useLogin();
+  const [showPassword, setShowPassword] = useState(false);
   const form = useForm<LoginFormValues>({
     defaultValues: {
       email: "",
@@ -79,11 +82,20 @@ export default function LoginForm() {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input
+                  <div className="relative">
+                    <Input
                     placeholder="••••••••"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     {...field}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev)=>!prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -12,8 +12,11 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
-import router from './../../../../backend/src/modules/room/room.routes';
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Check, Eye, EyeOff, X } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useCheckUsername, useSignup } from "./useSignup";
 
 type SignupFormValues = {
   name: string;
@@ -25,24 +28,36 @@ type SignupFormValues = {
 
 export default function SignupForm() {
   const router = useRouter();
+  const { mutate, isPending, error } = useSignup();
+  const [showPassword, setShowPassword] = useState(false);
   const form = useForm<SignupFormValues>({
     defaultValues: {
       name: "",
       email: "",
+      username: "",
       password: "",
       confirmPassword: "",
     },
   });
 
+  const username = form.watch("username");
+  const debouncedUsername = useDebounce(username, 500);
+
+  const { data, isFetching, isError } = useCheckUsername(debouncedUsername);
+  const isUsernameAvailable = data?.data.available;
+
   const onSubmit = (data: SignupFormValues) => {
-    
-    console.log(data); // hook later
-    router.push("/verify-otp");
+    mutate({
+      name: data.name,
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      confirmPassword: data.confirmPassword,
+    });
   };
 
   return (
     <div className="space-y-6">
-      
       {/* Heading */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Create an account</h1>
@@ -54,7 +69,6 @@ export default function SignupForm() {
       {/* Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          
           {/* Name */}
           <FormField
             control={form.control}
@@ -78,12 +92,35 @@ export default function SignupForm() {
               <FormItem>
                 <FormLabel>Username</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="yourusername"
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input type="text" placeholder="yourusername" {...field} />
+                    {/* Right Icon */}
+                    {debouncedUsername.length >= 3 && !isFetching && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {isUsernameAvailable ? (
+                          <Check size={16} className="text-green-500" />
+                        ) : (
+                          <X size={16} className="text-red-500" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </FormControl>
+                {/* Error message */}
+                {debouncedUsername.length >= 3 &&
+                  !isUsernameAvailable &&
+                  !isFetching && (
+                    <p className="text-sm text-red-500">
+                      Username is already taken
+                    </p>
+                  )}
+
+                {isFetching && (
+                  <p className="text-sm text-muted-foreground">
+                    Checking availability...
+                  </p>
+                )}
+
                 <FormMessage />
               </FormItem>
             )}
@@ -116,11 +153,20 @@ export default function SignupForm() {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input
+                      placeholder="••••••••"
+                      type={showPassword ? "text" : "password"}
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -135,11 +181,20 @@ export default function SignupForm() {
               <FormItem>
                 <FormLabel>Confirm password</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -147,8 +202,8 @@ export default function SignupForm() {
           />
 
           {/* Button */}
-          <Button type="submit" className="w-full">
-            Sign up
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Signing up..." : "Sign Up"}
           </Button>
         </form>
       </Form>
@@ -156,7 +211,10 @@ export default function SignupForm() {
       {/* Footer */}
       <p className="text-sm text-center text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="text-primary font-medium cursor-pointer hover:underline">
+        <Link
+          href="/login"
+          className="text-primary font-medium cursor-pointer hover:underline"
+        >
           Login
         </Link>
       </p>

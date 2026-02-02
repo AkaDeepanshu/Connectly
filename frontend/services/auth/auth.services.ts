@@ -14,4 +14,9 @@ export const authService = {
     refreshToken: ()=>
         api.post("/auth/refresh"),
 
+    checkUsername: (username: string)=>
+        api.get("/auth/check-username", {
+            params:{username}
+        }),
+
 }

@@ -8,12 +8,24 @@ import {
 } from "@/components/ui/input-otp";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useState } from "react";
+import { useVerifyOtp } from "./useVerifyOtp";
+import { useAuthStore } from "@/stores/auth.store";
 
 export default function VerifyOtpForm() {
   const [otp, setOtp] = useState("");
+  const { mutate, isPending, isError, error } = useVerifyOtp();
+  const pendingVerificationEmail = useAuthStore((state) => state.pendingVerificationEmail);
 
   const onSubmit = () => {
-    console.log("OTP:", otp); // integrate later
+    if (!pendingVerificationEmail) {
+      console.error("No email found for verification");
+      return;
+    }
+
+    mutate({
+      email: pendingVerificationEmail,
+      otp: otp,
+    });
   };
 
   return (
@@ -49,11 +61,17 @@ export default function VerifyOtpForm() {
       {/* Verify Button */}
       <Button
         className="w-full"
-        disabled={otp.length !== 6}
+        disabled={otp.length !== 6 || isPending}
         onClick={onSubmit}
       >
-        Verify
+        {isPending ? "Verifying..." : "Verify OTP"}
       </Button>
+
+      {isError && (
+        <p className="text-sm text-red-500 text-center">
+          {(error as Error).message}
+        </p>
+      )}
 
       {/* Resend */}
       <p className="text-center text-sm text-muted-foreground">

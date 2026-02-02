@@ -22,7 +22,7 @@ export const useSignup = () => {
 
 export const useCheckUsername = (username: string) => {
   return useQuery({
-    queryKey: ["check-username"],
+    queryKey: ["check-username", username],
     queryFn: ()=> authService.checkUsername(username),
     enabled: username.length > 3,
     retry: false,

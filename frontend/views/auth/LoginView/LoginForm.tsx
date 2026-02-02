@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useLogin } from "./useLogin";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 type LoginFormValues = {
   email: string;
@@ -66,6 +67,7 @@ export default function LoginForm() {
                   <Input
                     placeholder="you@example.com"
                     type="text"
+                    required
                     {...field}
                   />
                 </FormControl>
@@ -85,6 +87,7 @@ export default function LoginForm() {
                   <div className="relative">
                     <Input
                     placeholder="••••••••"
+                    required
                     type={showPassword ? "text" : "password"}
                     {...field}
                   />
@@ -104,7 +107,14 @@ export default function LoginForm() {
 
           {/* Button */}
           <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? "Logging in..." : "Login"}
+            {isPending ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner className="h-4 w-4" />
+                Logging in...
+              </span>
+            ) : (
+              "Login"
+            )}
           </Button>
         </form>
       </Form>

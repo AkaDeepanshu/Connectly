@@ -5,7 +5,7 @@ const router = express.Router();
 router
     .post("/signup",signupHandler)
     .post("/login", loginHandler)
-    .post("/check-username", checkUsernameAvailabilityHandler)
+    .get("/check-username", checkUsernameAvailabilityHandler)
     .post("/verify-otp", verifyOtpHandler)
     .post("/refresh", refreshAccessTokenHandler)
 //     .post("/resend-otp",ResendOtpController)

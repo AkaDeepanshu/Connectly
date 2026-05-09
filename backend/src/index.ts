@@ -1,12 +1,15 @@
 import express, { type Request, type Response } from "express";
 import http from "http";
 import cors from "cors";
-import authRoutes from "./modules/auth/auth.route.js";
 import cookieParser from "cookie-parser";
 import SocketService from "./socket/socket.service.js";
 import { startMessageConsumer } from "./services/kafka.js";
 import { registerSocket } from "./socket/index.js";
 import { globalErrorHandler } from "./middlewares/error.middleware.js";
+
+// Routes
+import authRoutes from "./modules/auth/auth.route.js";
+import roomRoutes from "./modules/room/room.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,11 +34,12 @@ app.use(express.json());
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/rooms", roomRoutes);
 
 // Global Error Handler
 app.use(globalErrorHandler);
 
-// Create HTTP server
+// Create HTTP server+
 const httpServer = http.createServer(app);
 // Start server
 httpServer.listen(PORT, () => {

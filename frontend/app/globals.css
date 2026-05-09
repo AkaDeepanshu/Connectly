@@ -1,6 +1,41 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ─── Connectly app tokens ───────────────────────── */
+:root {
+  --sidebar-w: 340px;
+
+  /* Chat bubbles */
+  --bubble-out-bg:   oklch(0.35 0.12 250);
+  --bubble-out-text: oklch(0.97 0 0);
+  --bubble-in-bg:    var(--muted);
+  --bubble-in-text:  var(--foreground);
+
+  /* Status */
+  --c-online:  oklch(0.7 0.18 155);
+  --c-danger:  var(--destructive);
+}
+
+/* ─── App shell reset ────────────────────────────── */
+html, body, #__next {
+  height: 100%;
+}
+
+/* Chat area needs its own scroll, not body */
+body {
+  overflow: hidden;
+}
+
+/* Auth pages override — they need body scroll */
+body.auth-layout {
+  overflow: auto;
+}
+
+/* ─── Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar        { width: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 4px; }
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

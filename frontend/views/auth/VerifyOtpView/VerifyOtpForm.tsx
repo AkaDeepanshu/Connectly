@@ -7,18 +7,28 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useVerifyOtp } from "./useVerifyOtp";
 import { useAuthStore } from "@/stores/auth.store";
+import { notify } from "@/lib/toast";
+import { useRouter } from "next/navigation";
 
 export default function VerifyOtpForm() {
+
+  const router = useRouter();
   const [otp, setOtp] = useState("");
   const { mutate, isPending, isError, error } = useVerifyOtp();
   const pendingVerificationEmail = useAuthStore((state) => state.pendingVerificationEmail);
 
   const onSubmit = () => {
     if (!pendingVerificationEmail) {
-      console.error("No email found for verification");
+
+      notify.error(
+        "Verification session expired"
+      );
+
+      router.push("/signup");
+
       return;
     }
 
@@ -28,9 +38,20 @@ export default function VerifyOtpForm() {
     });
   };
 
+  useEffect(() => {
+
+    if (
+      otp.length === 6 &&
+      pendingVerificationEmail
+    ) {
+      onSubmit();
+    }
+
+  }, [otp]);
+
   return (
     <div className="space-y-6">
-      
+
       {/* Heading */}
       <div className="space-y-1 text-center">
         <h1 className="text-2xl font-semibold">Verify OTP</h1>
@@ -67,11 +88,6 @@ export default function VerifyOtpForm() {
         {isPending ? "Verifying..." : "Verify OTP"}
       </Button>
 
-      {isError && (
-        <p className="text-sm text-red-500 text-center">
-          {(error as Error).message}
-        </p>
-      )}
 
       {/* Resend */}
       <p className="text-center text-sm text-muted-foreground">

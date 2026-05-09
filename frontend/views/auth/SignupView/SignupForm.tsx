@@ -48,7 +48,8 @@ export default function SignupForm() {
   const { data, isFetching, isError } = useCheckUsername(debouncedUsername);
   const isUsernameAvailable = data?.data.available;
   const isFormBlocked =
-  isUsernameAvailable === false || isFetching;
+  debouncedUsername.length >= 3 &&
+  (isUsernameAvailable === false || isFetching);
 
 
   const onSubmit = (data: SignupFormValues) => {
@@ -60,6 +61,15 @@ export default function SignupForm() {
       confirmPassword: data.confirmPassword,
     });
   };
+
+  const password = form.watch("password");
+  const confirmPassword =
+    form.watch("confirmPassword");
+
+  const passwordsDoNotMatch =
+    !!password &&
+    !!confirmPassword &&
+    password !== confirmPassword;
 
   return (
     <div className="space-y-7">
@@ -108,6 +118,11 @@ export default function SignupForm() {
                         required
                         {...field}
                         className="pr-10"
+                        onChange={(e) => {
+                          field.onChange(
+                            e.target.value.replace(/\s/g, "")
+                          );
+                        }}
                       />
 
                       {showStatus && (
@@ -214,8 +229,14 @@ export default function SignupForm() {
             )}
           />
 
+          {passwordsDoNotMatch && (
+            <p className="text-xs text-red-500">
+              Passwords do not match
+            </p>
+          )}
+
           {/* Button */}
-          <Button type="submit" className="w-full" disabled={isPending || isFormBlocked}>
+          <Button type="submit" className="w-full" disabled={isPending || isFormBlocked || passwordsDoNotMatch}>
             {isPending ? (
               <span className="flex items-center justify-center gap-2">
                 <Spinner className="h-4 w-4" />

@@ -119,12 +119,6 @@ export default function LoginForm() {
         </form>
       </Form>
 
-      {isError && (
-        <p className="text-sm text-red-500 text-center">
-          {(error as any)?.response?.data?.message || "Login failed"}
-        </p>
-      )}
-
       {/* Footer */}
       <p className="text-sm text-center text-muted-foreground">
         Don&apos;t have an account?{" "}
